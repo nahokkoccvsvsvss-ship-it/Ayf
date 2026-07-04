@@ -1,0 +1,1294 @@
+        HEADER_END      = Color3.fromRGB(255, 215, 0),
+        GOLD            = Color3.fromRGB(255, 215, 0),
+        CLOSE_RED       = Color3.fromRGB(255, 59, 48),
+        MINIMIZE_YELLOW = Color3.fromRGB(255, 204, 0),
+        BUTTON_BG       = Color3.fromRGB(42, 74, 122),
+        BUTTON_HOVER    = Color3.fromRGB(60, 100, 160),
+        TEXT_WHITE      = Color3.fromRGB(255, 255, 255),
+        TEXT_GRAY       = Color3.fromRGB(180, 180, 180),
+        TOGGLE_OFF      = Color3.fromRGB(85, 85, 85),
+        STATUS_BG       = Color3.fromRGB(26, 42, 74),
+        GREEN_PULSE     = Color3.fromRGB(0, 220, 100),
+        DROPDOWN_BG     = Color3.fromRGB(18, 30, 60),
+        SLIDER_TRACK    = Color3.fromRGB(85, 85, 85),
+        TOAST_BG        = Color3.fromRGB(20, 35, 65),
+        ACTIVE_TAB      = Color3.fromRGB(255, 215, 0),
+        INACTIVE_TAB    = Color3.fromRGB(10, 10, 26),
+    },
+    SIZES = {
+        WIDTH           = 500,
+        HEIGHT          = 600,
+        HEADER_H        = 70,
+        STATUS_H        = 30,
+        TABS_H          = 40,
+        BORDER_SIZE     = 2,
+        RADIUS          = 12,
+    },
+    TWEEN_SPEED         = 0.2,
+    VERSION             = "2.0.0",
+    DEVELOPER           = "LuxDev",
+    UPDATE_DATE         = "2025-07-04",
+}
+
+-- ═══════════════════════════════════════════════
+--              مكتبة الواجهة الفاخرة
+-- ═══════════════════════════════════════════════
+local LuxuryGUI = {}
+LuxuryGUI.__index = LuxuryGUI
+
+-- متغيرات الحالة
+local State = {
+    isVisible       = true,
+    isMinimized     = false,
+    activeTab       = 1,
+    statusText      = "جاهز",
+    lastLocation    = nil,
+    settings = {
+        notifications   = true,
+        soundEffects    = false,
+    },
+    searchResults   = {},
+}
+
+-- ═══════════════════════════════════════════════
+--              دوال المساعدة
+-- ═══════════════════════════════════════════════
+
+local function Tween(obj, props, duration)
+    duration = duration or CONFIG.TWEEN_SPEED
+    local info = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(obj, info, props)
+    tween:Play()
+    return tween
+end
+
+local function CreateInstance(class, props)
+    local inst = Instance.new(class)
+    for k, v in pairs(props) do
+        inst[k] = v
+    end
+    return inst
+end
+
+local function CreateCorner(parent, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, radius or CONFIG.SIZES.RADIUS)
+    corner.Parent = parent
+    return corner
+end
+
+local function CreateStroke(parent, color, thickness)
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = color or CONFIG.COLORS.GOLD
+    stroke.Thickness = thickness or CONFIG.SIZES.BORDER_SIZE
+    stroke.Parent = parent
+    return stroke
+end
+
+local function CreatePadding(parent, top, bottom, left, right)
+    local pad = Instance.new("UIPadding")
+    pad.PaddingTop    = UDim.new(0, top or 0)
+    pad.PaddingBottom = UDim.new(0, bottom or 0)
+    pad.PaddingLeft   = UDim.new(0, left or 0)
+    pad.PaddingRight  = UDim.new(0, right or 0)
+    pad.Parent = parent
+    return pad
+end
+
+local function CreateGradient(parent, fromColor, toColor, rotation)
+    local grad = Instance.new("UIGradient")
+    grad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, fromColor),
+        ColorSequenceKeypoint.new(1, toColor),
+    })
+    grad.Rotation = rotation or 90
+    grad.Parent = parent
+    return grad
+end
+
+local function SetStatus(text)
+    State.statusText = text
+    if _G.LuxStatusLabel then
+        _G.LuxStatusLabel.Text = "● " .. text
+    end
+end
+
+-- ═══════════════════════════════════════════════
+--              دالة إنشاء الإشعار
+-- ═══════════════════════════════════════════════
+function LuxuryGUI:Notify(message, duration)
+    if not State.settings.notifications then return end
+    duration = duration or 2
+
+    local toastContainer = _G.LuxToastContainer
+    if not toastContainer then return end
+
+    local toast = CreateInstance("Frame", {
+        Size            = UDim2.new(1, 0, 0, 0),
+        BackgroundColor3= CONFIG.COLORS.TOAST_BG,
+        BackgroundTransparency = 0.1,
+        AutomaticSize   = Enum.AutomaticSize.Y,
+        Parent          = toastContainer,
+    })
+    CreateCorner(toast, 8)
+    CreateStroke(toast, CONFIG.COLORS.GOLD, 1)
+    CreatePadding(toast, 10, 10, 12, 12)
+
+    local label = CreateInstance("TextLabel", {
+        Size            = UDim2.new(1, 0, 0, 0),
+        AutomaticSize   = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        Text            = message,
+        TextColor3      = CONFIG.COLORS.TEXT_WHITE,
+        TextSize        = 13,
+        Font            = Enum.Font.GothamBold,
+        TextXAlignment  = Enum.TextXAlignment.Right,
+        TextWrapped     = true,
+        Parent          = toast,
+    })
+
+    toast.BackgroundTransparency = 1
+    Tween(toast, {BackgroundTransparency = 0.1}, 0.3)
+
+    task.delay(duration, function()
+        Tween(toast, {BackgroundTransparency = 1}, 0.3)
+        task.delay(0.35, function()
+            if toast and toast.Parent then
+                toast:Destroy()
+            end
+        end)
+    end)
+end
+
+-- ═══════════════════════════════════════════════
+--              إنشاء الأزرار
+-- ═══════════════════════════════════════════════
+function LuxuryGUI:AddButton(parent, text, callback)
+    local btn = CreateInstance("TextButton", {
+        Size            = UDim2.new(1, -20, 0, 40),
+        Position        = UDim2.new(0, 10, 0, 0),
+        BackgroundColor3= CONFIG.COLORS.BUTTON_BG,
+        Text            = text,
+        TextColor3      = CONFIG.COLORS.TEXT_WHITE,
+        TextSize        = 13,
+        Font            = Enum.Font.GothamBold,
+        AutoButtonColor = false,
+        Parent          = parent,
+    })
+    CreateCorner(btn, 8)
+    CreateStroke(btn, Color3.fromRGB(60, 100, 160), 1)
+
+    btn.MouseEnter:Connect(function()
+        Tween(btn, {BackgroundColor3 = CONFIG.COLORS.BUTTON_HOVER})
+    end)
+    btn.MouseLeave:Connect(function()
+        Tween(btn, {BackgroundColor3 = CONFIG.COLORS.BUTTON_BG})
+    end)
+    btn.MouseButton1Down:Connect(function()
+        Tween(btn, {Size = UDim2.new(1, -24, 0, 38), Position = UDim2.new(0, 12, 0, 1)}, 0.08)
+        Tween(btn, {BackgroundColor3 = CONFIG.COLORS.GOLD}, 0.08)
+    end)
+    btn.MouseButton1Up:Connect(function()
+        Tween(btn, {Size = UDim2.new(1, -20, 0, 40), Position = UDim2.new(0, 10, 0, 0)}, 0.12)
+        Tween(btn, {BackgroundColor3 = CONFIG.COLORS.BUTTON_BG}, 0.12)
+        if callback then
+            local ok, err = pcall(callback)
+            if not ok then
+                self:Notify("⚠️ حدث خطأ: " .. tostring(err), 3)
+            end
+        end
+    end)
+
+    return btn
+end
+
+-- ═══════════════════════════════════════════════
+--              إنشاء زر التبديل (Toggle)
+-- ═══════════════════════════════════════════════
+function LuxuryGUI:AddToggle(parent, text, default, callback)
+    local isOn = default or false
+
+    local row = CreateInstance("Frame", {
+        Size            = UDim2.new(1, -20, 0, 36),
+        Position        = UDim2.new(0, 10, 0, 0),
+        BackgroundTransparency = 1,
+        Parent          = parent,
+    })
+
+    local label = CreateInstance("TextLabel", {
+        Size            = UDim2.new(1, -60, 1, 0),
+        BackgroundTransparency = 1,
+        Text            = text,
+        TextColor3      = CONFIG.COLORS.TEXT_WHITE,
+        TextSize        = 13,
+        Font            = Enum.Font.Gotham,
+        TextXAlignment  = Enum.TextXAlignment.Right,
+        Parent          = row,
+    })
+
+    local track = CreateInstance("Frame", {
+        Size            = UDim2.new(0, 44, 0, 24),
+        Position        = UDim2.new(0, 0, 0.5, -12),
+        BackgroundColor3= isOn and CONFIG.COLORS.GOLD or CONFIG.COLORS.TOGGLE_OFF,
+        Parent          = row,
+    })
+    CreateCorner(track, 12)
+
+    local thumb = CreateInstance("Frame", {
+        Size            = UDim2.new(0, 18, 0, 18),
+        Position        = isOn and UDim2.new(0, 23, 0.5, -9) or UDim2.new(0, 3, 0.5, -9),
+        BackgroundColor3= CONFIG.COLORS.TEXT_WHITE,
+        Parent          = track,
+    })
+    CreateCorner(thumb, 9)
+
+    local btn = CreateInstance("TextButton", {
+        Size            = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text            = "",
+        Parent          = track,
+    })
+
+    btn.MouseButton1Click:Connect(function()
+        isOn = not isOn
+        Tween(track, {BackgroundColor3 = isOn and CONFIG.COLORS.GOLD or CONFIG.COLORS.TOGGLE_OFF})
+        Tween(thumb, {Position = isOn and UDim2.new(0, 23, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)})
+        if callback then callback(isOn) end
+        self:Notify(text .. ": " .. (isOn and "✅ مُفعَّل" or "❌ مُعطَّل"))
+    end)
+
+    return {track = track, thumb = thumb, getValue = function() return isOn end}
+end
+
+-- ═══════════════════════════════════════════════
+--              إنشاء القائمة المنسدلة (Dropdown)
+-- ═══════════════════════════════════════════════
+function LuxuryGUI:AddDropdown(parent, text, options, callback)
+    local isOpen = false
+    local selected = options[1] or ""
+
+    local container = CreateInstance("Frame", {
+        Size            = UDim2.new(1, -20, 0, 0),
+        Position        = UDim2.new(0, 10, 0, 0),
+        AutomaticSize   = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        ClipsDescendants= false,
+        Parent          = parent,
+    })
+
+    local label = CreateInstance("TextLabel", {
+        Size            = UDim2.new(1, 0, 0, 20),
+        BackgroundTransparency = 1,
+        Text            = text,
+        TextColor3      = CONFIG.COLORS.TEXT_GRAY,
+        TextSize        = 12,
+        Font            = Enum.Font.Gotham,
+        TextXAlignment  = Enum.TextXAlignment.Right,
+        Parent          = container,
+    })
+
+    local mainBtn = CreateInstance("TextButton", {
+        Size            = UDim2.new(1, 0, 0, 38),
+        Position        = UDim2.new(0, 0, 0, 22),
+        BackgroundColor3= CONFIG.COLORS.DROPDOWN_BG,
+        Text            = "",
+        AutoButtonColor = false,
+        Parent          = container,
+    })
+    CreateCorner(mainBtn, 8)
+    CreateStroke(mainBtn, CONFIG.COLORS.GOLD, 1)
+
+    local selectedLabel = CreateInstance("TextLabel", {
+        Size            = UDim2.new(1, -40, 1, 0),
+        Position        = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1,
+        Text            = selected,
+        TextColor3      = CONFIG.COLORS.TEXT_WHITE,
+        TextSize        = 13,
+        Font            = Enum.Font.Gotham,
+        TextXAlignment  = Enum.TextXAlignment.Right,
+        Parent          = mainBtn,
+    })
+    CreatePadding(selectedLabel, 0, 0, 0, 8)
+
+    local arrow = CreateInstance("TextLabel", {
+        Size            = UDim2.new(0, 30, 1, 0),
+        Position        = UDim2.new(0, 4, 0, 0),
+        BackgroundTransparency = 1,
+        Text            = "▼",
+        TextColor3      = CONFIG.COLORS.GOLD,
+        TextSize        = 12,
+        Font            = Enum.Font.GothamBold,
+        TextXAlignment  = Enum.TextXAlignment.Center,
+        Parent          = mainBtn,
+    })
+
+    local dropFrame = CreateInstance("Frame", {
+        Size            = UDim2.new(1, 0, 0, 0),
+        Position        = UDim2.new(0, 0, 0, 62),
+        BackgroundColor3= CONFIG.COLORS.DROPDOWN_BG,
+        ClipsDescendants= true,
+        ZIndex          = 10,
+        Parent          = container,
+    })
+    CreateCorner(dropFrame, 8)
+    CreateStroke(dropFrame, CONFIG.COLORS.GOLD, 1)
+
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    listLayout.Parent = dropFrame
+
+    for i, opt in ipairs(options) do
+        local optBtn = CreateInstance("TextButton", {
+            Size            = UDim2.new(1, 0, 0, 34),
+            BackgroundColor3= CONFIG.COLORS.DROPDOWN_BG,
+            Text            = opt,
+            TextColor3      = CONFIG.COLORS.TEXT_WHITE,
+            TextSize        = 13,
+            Font            = Enum.Font.Gotham,
+            TextXAlignment  = Enum.TextXAlignment.Right,
+            AutoButtonColor = false,
+            ZIndex          = 10,
+            LayoutOrder     = i,
+            Parent          = dropFrame,
+        })
+        CreatePadding(optBtn, 0, 0, 0, 10)
+
+        optBtn.MouseEnter:Connect(function()
+            Tween(optBtn, {BackgroundColor3 = CONFIG.COLORS.BUTTON_BG})
+        end)
+        optBtn.MouseLeave:Connect(function()
+            Tween(optBtn, {BackgroundColor3 = CONFIG.COLORS.DROPDOWN_BG})
+        end)
+        optBtn.MouseButton1Click:Connect(function()
+            selected = opt
+            selectedLabel.Text = opt
+            isOpen = false
+            Tween(arrow, {Rotation = 0})
+            Tween(dropFrame, {Size = UDim2.new(1, 0, 0, 0)})
+            if callback then callback(opt) end
+        end)
+    end
+
+    mainBtn.MouseButton1Click:Connect(function()
+        isOpen = not isOpen
+        local targetH = isOpen and math.min(#options * 34, 170) or 0
+        Tween(arrow, {Rotation = isOpen and 180 or 0})
+        Tween(dropFrame, {Size = UDim2.new(1, 0, 0, targetH)})
+    end)
+
+    return {
+        getValue = function() return selected end,
+        setValue = function(v) selected = v; selectedLabel.Text = v end,
+    }
+end
+
+-- ═══════════════════════════════════════════════
+--              إنشاء شريط التحكم (Slider)
+-- ═══════════════════════════════════════════════
+function LuxuryGUI:AddSlider(parent, text, minVal, maxVal, default, callback)
+    local value = default or minVal
+    local dragging = false
+
+    local container = CreateInstance("Frame", {
+        Size            = UDim2.new(1, -20, 0, 60),
+        Position        = UDim2.new(0, 10, 0, 0),
+        BackgroundTransparency = 1,
+        Parent          = parent,
+    })
+
+    local titleRow = CreateInstance("Frame", {
+        Size            = UDim2.new(1, 0, 0, 20),
+        BackgroundTransparency = 1,
+        Parent          = container,
+    })
+
+    local titleLabel = CreateInstance("TextLabel", {
+        Size            = UDim2.new(0.7, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text            = text,
+        TextColor3      = CONFIG.COLORS.TEXT_WHITE,
+        TextSize        = 13,
+        Font            = Enum.Font.Gotham,
+        TextXAlignment  = Enum.TextXAlignment.Right,
+        Parent          = titleRow,
+        Position        = UDim2.new(0.3, 0, 0, 0),
+    })
+
+    local valueLabel = CreateInstance("TextLabel", {
+        Size            = UDim2.new(0.28, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text            = tostring(value),
+        TextColor3      = CONFIG.COLORS.GOLD,
+        TextSize        = 13,
+        Font            = Enum.Font.GothamBold,
+        TextXAlignment  = Enum.TextXAlignment.Left,
+        Parent          = titleRow,
+    })
+
+    local track = CreateInstance("Frame", {
+        Size            = UDim2.new(1, 0, 0, 6),
+        Position        = UDim2.new(0, 0, 0, 32),
+        BackgroundColor3= CONFIG.COLORS.SLIDER_TRACK,
+        Parent          = container,
+    })
+    CreateCorner(track, 3)
+
+    local fill = CreateInstance("Frame", {
+        Size            = UDim2.new((value - minVal) / (maxVal - minVal), 0, 1, 0),
+        BackgroundColor3= CONFIG.COLORS.GOLD,
+        Parent          = track,
+    })
+    CreateCorner(fill, 3)
+
+    local knob = CreateInstance("Frame", {
+        Size            = UDim2.new(0, 16, 0, 16),
+        Position        = UDim2.new((value - minVal) / (maxVal - minVal), -8, 0.5, -8),
+        BackgroundColor3= CONFIG.COLORS.GOLD,
+        Parent          = track,
+        ZIndex          = 3,
+    })
+    CreateCorner(knob, 8)
+    CreateStroke(knob, Color3.fromRGB(255, 255, 255), 1)
+
+    local sliderBtn = CreateInstance("TextButton", {
+        Size            = UDim2.new(1, 0, 0, 24),
+        Position        = UDim2.new(0, 0, 0, -9),
+        BackgroundTransparency = 1,
+        Text            = "",
+        ZIndex          = 4,
+        Parent          = track,
+    })
+
+    local function updateSlider(inputX)
+        local absX    = track.AbsolutePosition.X
+        local absW    = track.AbsoluteSize.X
+        local ratio   = math.clamp((inputX - absX) / absW, 0, 1)
+        value         = math.floor(minVal + (maxVal - minVal) * ratio)
+        valueLabel.Text = tostring(value)
+        Tween(fill, {Size = UDim2.new(ratio, 0, 1, 0)}, 0.05)
+        Tween(knob, {Position = UDim2.new(ratio, -8, 0.5, -8)}, 0.05)
+        if callback then callback(value) end
+    end
+
+    sliderBtn.MouseButton1Down:Connect(function(x, y)
+        dragging = true
+        updateSlider(x)
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            updateSlider(input.Position.X)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    return {
+        getValue = function() return value end,
+        setValue = function(v)
+            value = math.clamp(v, minVal, maxVal)
+            local ratio = (value - minVal) / (maxVal - minVal)
+            valueLabel.Text = tostring(value)
+            fill.Size = UDim2.new(ratio, 0, 1, 0)
+            knob.Position = UDim2.new(ratio, -8, 0.5, -8)
+        end,
+    }
+end
+
+-- ═══════════════════════════════════════════════
+--              إنشاء حقل النص (TextBox)
+-- ═══════════════════════════════════════════════
+function LuxuryGUI:AddTextBox(parent, labelText, placeholder, callback)
+    local container = CreateInstance("Frame", {
+        Size            = UDim2.new(1, -20, 0, 60),
+        Position        = UDim2.new(0, 10, 0, 0),
+        BackgroundTransparency = 1,
+        Parent          = parent,
+    })
+
+    local label = CreateInstance("TextLabel", {
+        Size            = UDim2.new(1, 0, 0, 20),
+        BackgroundTransparency = 1,
+        Text            = labelText,
+        TextColor3      = CONFIG.COLORS.TEXT_GRAY,
+        TextSize        = 12,
+        Font            = Enum.Font.Gotham,
+        TextXAlignment  = Enum.TextXAlignment.Right,
+        Parent          = container,
+    })
+
+    local box = CreateInstance("TextBox", {
+        Size            = UDim2.new(1, 0, 0, 36),
+        Position        = UDim2.new(0, 0, 0, 22),
+        BackgroundColor3= CONFIG.COLORS.DROPDOWN_BG,
+        Text            = "",
+        PlaceholderText = placeholder or "أدخل النص هنا...",
+        PlaceholderColor3 = CONFIG.COLORS.TEXT_GRAY,
+        TextColor3      = CONFIG.COLORS.TEXT_WHITE,
+        TextSize        = 13,
+        Font            = Enum.Font.Gotham,
+        TextXAlignment  = Enum.TextXAlignment.Right,
+        ClearTextOnFocus= false,
+        Parent          = container,
+    })
+    CreateCorner(box, 8)
+    CreateStroke(box, CONFIG.COLORS.GOLD, 1)
+    CreatePadding(box, 0, 0, 0, 10)
+
+    box.Focused:Connect(function()
+        Tween(box, {BackgroundColor3 = CONFIG.COLORS.SECONDARY_BG})
+    end)
+    box.FocusLost:Connect(function(enterPressed)
+        Tween(box, {BackgroundColor3 = CONFIG.COLORS.DROPDOWN_BG})
+        if enterPressed and callback then
+            callback(box.Text)
+        end
+    end)
+
+    return box
+end
+
+-- ═══════════════════════════════════════════════
+--           إنشاء قسم عنوان داخل التاب
+-- ═══════════════════════════════════════════════
+local function CreateSection(parent, sectionTitle)
+    local frame = CreateInstance("Frame", {
+        Size            = UDim2.new(1, 0, 0, 28),
+        BackgroundTransparency = 1,
+        Parent          = parent,
+    })
+
+    local line = CreateInstance("Frame", {
+        Size            = UDim2.new(0.4, 0, 0, 1),
+        Position        = UDim2.new(0, 0, 0.5, 0),
+        BackgroundColor3= CONFIG.COLORS.GOLD,
+        BackgroundTransparency = 0.6,
+        Parent          = frame,
+    })
+
+    local line2 = CreateInstance("Frame", {
+        Size            = UDim2.new(0.4, 0, 0, 1),
+        Position        = UDim2.new(0.6, 0, 0.5, 0),
+        BackgroundColor3= CONFIG.COLORS.GOLD,
+        BackgroundTransparency = 0.6,
+        Parent          = frame,
+    })
+
+    local lbl = CreateInstance("TextLabel", {
+        Size            = UDim2.new(0.6, 0, 1, 0),
+        Position        = UDim2.new(0.2, 0, 0, 0),
+        BackgroundTransparency = 1,
+        Text            = sectionTitle,
+        TextColor3      = CONFIG.COLORS.GOLD,
+        TextSize        = 12,
+        Font            = Enum.Font.GothamBold,
+        TextXAlignment  = Enum.TextXAlignment.Center,
+        Parent          = frame,
+    })
+
+    return frame
+end
+
+-- ═══════════════════════════════════════════════
+--              الواجهة الرئيسية
+-- ═══════════════════════════════════════════════
+function LuxuryGUI:CreateWindow(title)
+    -- إزالة أي واجهة سابقة
+    if PlayerGui:FindFirstChild("LuxuryBloxFruitsGUI") then
+        PlayerGui.LuxuryBloxFruitsGUI:Destroy()
+    end
+
+    -- ScreenGui الرئيسي
+    local screenGui = CreateInstance("ScreenGui", {
+        Name            = "LuxuryBloxFruitsGUI",
+        ResetOnSpawn    = false,
+        ZIndexBehavior  = Enum.ZIndexBehavior.Sibling,
+        Parent          = PlayerGui,
+    })
+
+    -- الإطار الرئيسي
+    local mainFrame = CreateInstance("Frame", {
+        Name            = "MainFrame",
+        Size            = UDim2.new(0, CONFIG.SIZES.WIDTH, 0, CONFIG.SIZES.HEIGHT),
+        Position        = UDim2.new(0.5, -CONFIG.SIZES.WIDTH / 2, 0.5, -CONFIG.SIZES.HEIGHT / 2),
+        BackgroundColor3= CONFIG.COLORS.PRIMARY_BG,
+        BackgroundTransparency = 0.08,
+        ClipsDescendants= true,
+        Parent          = screenGui,
+    })
+    CreateCorner(mainFrame, CONFIG.SIZES.RADIUS)
+    CreateStroke(mainFrame, CONFIG.COLORS.GOLD, CONFIG.SIZES.BORDER_SIZE)
+
+    -- ظل الإطار
+    local shadow = CreateInstance("Frame", {
+        Size            = UDim2.new(1, 20, 1, 20),
+        Position        = UDim2.new(0, -10, 0, 10),
+        BackgroundColor3= Color3.fromRGB(0, 0, 0),
+        BackgroundTransparency = 0.3,
+        ZIndex          = 0,
+        Parent          = mainFrame,
+    })
+    CreateCorner(shadow, CONFIG.SIZES.RADIUS + 4)
+
+    -- ─────────────────────────────────
+    --              الهيدر
+    -- ─────────────────────────────────
+    local header = CreateInstance("Frame", {
+        Name            = "Header",
+        Size            = UDim2.new(1, 0, 0, CONFIG.SIZES.HEADER_H),
+        BackgroundColor3= CONFIG.COLORS.HEADER_START,
+        ClipsDescendants= true,
+        Parent          = mainFrame,
+    })
+    CreateCorner(header, 0)
+    CreateGradient(header, CONFIG.COLORS.HEADER_START, CONFIG.COLORS.HEADER_END, 0)
+
+    -- العنوان
+    local titleLabel = CreateInstance("TextLabel", {
+        Size            = UDim2.new(0.7, 0, 1, 0),
+        Position        = UDim2.new(0.15, 0, 0, 0),
+        BackgroundTransparency = 1,
+        Text            = "⚔️  " .. title .. "  🏴‍☠️",
+        TextColor3      = CONFIG.COLORS.TEXT_WHITE,
+        TextSize        = 18,
+        Font            = Enum.Font.GothamBold,
+        TextXAlignment  = Enum.TextXAlignment.Center,
+        TextStrokeTransparency = 0.5,
+        TextStrokeColor3= Color3.fromRGB(0, 0, 0),
+        Parent          = header,
+    })
+
+    -- أزرار التحكم (يمين)
+    local ctrlFrame = CreateInstance("Frame", {
+        Size            = UDim2.new(0, 70, 0, 30),
+        Position        = UDim2.new(0, 10, 0.5, -15),
+        BackgroundTransparency = 1,
+        Parent          = header,
+    })
+
+    -- زر الإغلاق
+    local closeBtn = CreateInstance("TextButton", {
+        Size            = UDim2.new(0, 26, 0, 26),
+        Position        = UDim2.new(0, 0, 0.5, -13),
+        BackgroundColor3= CONFIG.COLORS.CLOSE_RED,
+        Text            = "×",
+        TextColor3      = CONFIG.COLORS.TEXT_WHITE,
+        TextSize        = 16,
+        Font            = Enum.Font.GothamBold,
+        AutoButtonColor = false,
+        Parent          = ctrlFrame,
+    })
+    CreateCorner(closeBtn, 13)
+
+    -- زر التصغير
+    local minBtn = CreateInstance("TextButton", {
+        Size            = UDim2.new(0, 26, 0, 26),
+        Position        = UDim2.new(0, 32, 0.5, -13),
+        BackgroundColor3= CONFIG.COLORS.MINIMIZE_YELLOW,
+        Text            = "−",
+        TextColor3      = Color3.fromRGB(80, 50, 0),
+        TextSize        = 18,
+        Font            = Enum.Font.GothamBold,
+        AutoButtonColor = false,
+        Parent          = ctrlFrame,
+    })
+    CreateCorner(minBtn, 13)
+
+    -- خط فاصل ذهبي أسفل الهيدر
+    local headerDivider = CreateInstance("Frame", {
+        Size            = UDim2.new(1, 0, 0, 1),
+        Position        = UDim2.new(0, 0, 0, CONFIG.SIZES.HEADER_H - 1),
+        BackgroundColor3= CONFIG.COLORS.GOLD,
+        BackgroundTransparency = 0.4,
+        Parent          = mainFrame,
+    })
+
+    -- ─────────────────────────────────
+    --          شريط الحالة
+    -- ─────────────────────────────────
+    local statusBar = CreateInstance("Frame", {
+        Size            = UDim2.new(1, 0, 0, CONFIG.SIZES.STATUS_H),
+        Position        = UDim2.new(0, 0, 0, CONFIG.SIZES.HEADER_H),
+        BackgroundColor3= CONFIG.COLORS.STATUS_BG,
+        BackgroundTransparency = 0.2,
+        Parent          = mainFrame,
+    })
+
+    local pulseDot = CreateInstance("Frame", {
+        Size            = UDim2.new(0, 10, 0, 10),
+        Position        = UDim2.new(0, 12, 0.5, -5),
+        BackgroundColor3= CONFIG.COLORS.GREEN_PULSE,
+        Parent          = statusBar,
+    })
+    CreateCorner(pulseDot, 5)
+
+    local statusLabel = CreateInstance("TextLabel", {
+        Size            = UDim2.new(1, -30, 1, 0),
+        Position        = UDim2.new(0, 28, 0, 0),
+        BackgroundTransparency = 1,
+        Text            = "● " .. State.statusText,
+        TextColor3      = CONFIG.COLORS.TEXT_WHITE,
+        TextSize        = 12,
+        Font            = Enum.Font.Gotham,
+        TextXAlignment  = Enum.TextXAlignment.Left,
+        Parent          = statusBar,
+    })
+    _G.LuxStatusLabel = statusLabel
+
+    -- نبض النقطة الخضراء
+    task.spawn(function()
+        while screenGui and screenGui.Parent do
+            Tween(pulseDot, {BackgroundTransparency = 0.8}, 0.5)
+            task.wait(0.5)
+            Tween(pulseDot, {BackgroundTransparency = 0}, 0.5)
+            task.wait(0.5)
+        end
+    end)
+
+    -- ─────────────────────────────────
+    --          أزرار التابات
+    -- ─────────────────────────────────
+    local tabsY = CONFIG.SIZES.HEADER_H + CONFIG.SIZES.STATUS_H
+
+    local tabsBar = CreateInstance("Frame", {
+        Size            = UDim2.new(1, 0, 0, CONFIG.SIZES.TABS_H),
+        Position        = UDim2.new(0, 0, 0, tabsY),
+        BackgroundColor3= CONFIG.COLORS.PRIMARY_BG,
+        BackgroundTransparency = 0.3,
+        Parent          = mainFrame,
+    })
+
+    local TABS = {
+        {name = "الرئيسية", icon = "🏠"},
+        {name = "البحث",    icon = "🔍"},
+        {name = "الانتقال", icon = "🌍"},
+        {name = "الإعدادات",icon = "⚙️"},
+    }
+    local tabButtons   = {}
+    local tabSlider    = CreateInstance("Frame", {
+        Size            = UDim2.new(1 / #TABS, -8, 0, 3),
+        Position        = UDim2.new(0, 4, 1, -4),
+        BackgroundColor3= CONFIG.COLORS.GOLD,
+        Parent          = tabsBar,
+    })
+    CreateCorner(tabSlider, 2)
+
+    local tabW = 1 / #TABS
+    for i, tab in ipairs(TABS) do
+        local tbtn = CreateInstance("TextButton", {
+            Size            = UDim2.new(tabW, 0, 1, 0),
+            Position        = UDim2.new(tabW * (i - 1), 0, 0, 0),
+            BackgroundTransparency = 1,
+            Text            = tab.icon .. " " .. tab.name,
+            TextColor3      = i == 1 and CONFIG.COLORS.GOLD or CONFIG.COLORS.TEXT_GRAY,
+            TextSize        = 12,
+            Font            = i == 1 and Enum.Font.GothamBold or Enum.Font.Gotham,
+            AutoButtonColor = false,
+            Parent          = tabsBar,
+        })
+        tabButtons[i] = tbtn
+    end
+
+    -- ─────────────────────────────────
+    --          منطقة المحتوى
+    -- ─────────────────────────────────
+    local contentY  = tabsY + CONFIG.SIZES.TABS_H
+    local contentH  = CONFIG.SIZES.HEIGHT - contentY
+
+    local contentArea = CreateInstance("ScrollingFrame", {
+        Size                = UDim2.new(1, 0, 0, contentH),
+        Position            = UDim2.new(0, 0, 0, contentY),
+        BackgroundTransparency = 1,
+        ScrollBarThickness  = 4,
+        ScrollBarImageColor3= CONFIG.COLORS.GOLD,
+        CanvasSize          = UDim2.new(0, 0, 0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        Parent              = mainFrame,
+    })
+
+    -- إنشاء صفحات التابات
+    local tabPages = {}
+    for i = 1, #TABS do
+        local page = CreateInstance("Frame", {
+            Size            = UDim2.new(1, 0, 1, 0),
+            BackgroundTransparency = 1,
+            Visible         = i == 1,
+            Parent          = contentArea,
+        })
+        local layout = Instance.new("UIListLayout")
+        layout.SortOrder = Enum.SortOrder.LayoutOrder
+        layout.Padding = UDim.new(0, 10)
+        layout.Parent = page
+        CreatePadding(page, 10, 10, 0, 0)
+        tabPages[i] = page
+    end
+
+    -- منطق التابات
+    local function switchTab(idx)
+        State.activeTab = idx
+        for i, btn in ipairs(tabButtons) do
+            local active = i == idx
+            btn.TextColor3 = active and CONFIG.COLORS.GOLD or CONFIG.COLORS.TEXT_GRAY
+            btn.Font = active and Enum.Font.GothamBold or Enum.Font.Gotham
+            tabPages[i].Visible = active
+        end
+        local targetX = tabW * (idx - 1)
+        Tween(tabSlider, {Position = UDim2.new(targetX, 4, 1, -4)})
+        contentArea.CanvasPosition = Vector2.new(0, 0)
+    end
+
+    for i, btn in ipairs(tabButtons) do
+        btn.MouseButton1Click:Connect(function()
+            switchTab(i)
+        end)
+    end
+
+    -- ═══════════════════════════════════════
+    --     مشوار الإشعارات (Toast Container)
+    -- ═══════════════════════════════════════
+    local toastContainer = CreateInstance("Frame", {
+        Size            = UDim2.new(0, 260, 0, 0),
+        Position        = UDim2.new(1, -270, 1, -20),
+        AnchorPoint     = Vector2.new(0, 1),
+        BackgroundTransparency = 1,
+        AutomaticSize   = Enum.AutomaticSize.Y,
+        ZIndex          = 20,
+        Parent          = screenGui,
+    })
+
+    local toastLayout = Instance.new("UIListLayout")
+    toastLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    toastLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+    toastLayout.Padding = UDim.new(0, 6)
+    toastLayout.Parent = toastContainer
+    _G.LuxToastContainer = toastContainer
+
+    -- ═══════════════════════════════════════
+    --     زر الإغلاق والتصغير
+    -- ═══════════════════════════════════════
+    closeBtn.MouseButton1Click:Connect(function()
+        Tween(mainFrame, {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)}, 0.3)
+        task.delay(0.35, function()
+            screenGui:Destroy()
+        end)
+    end)
+
+    minBtn.MouseButton1Click:Connect(function()
+        State.isMinimized = not State.isMinimized
+        if State.isMinimized then
+            Tween(mainFrame, {Size = UDim2.new(0, CONFIG.SIZES.WIDTH, 0, CONFIG.SIZES.HEADER_H)})
+        else
+            Tween(mainFrame, {Size = UDim2.new(0, CONFIG.SIZES.WIDTH, 0, CONFIG.SIZES.HEIGHT)})
+        end
+    end)
+
+    -- ═══════════════════════════════════════
+    --     السحب (Drag)
+    -- ═══════════════════════════════════════
+    local dragging, dragStart, startPos = false, nil, nil
+
+    header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = mainFrame.Position
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            mainFrame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    -- ظهور الواجهة مع أنيميشن
+    mainFrame.Size = UDim2.new(0, 0, 0, 0)
+    mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    Tween(mainFrame, {
+        Size = UDim2.new(0, CONFIG.SIZES.WIDTH, 0, CONFIG.SIZES.HEIGHT),
+        Position = UDim2.new(0.5, -CONFIG.SIZES.WIDTH / 2, 0.5, -CONFIG.SIZES.HEIGHT / 2)
+    }, 0.4)
+
+    return {
+        screenGui    = screenGui,
+        mainFrame    = mainFrame,
+        tabPages     = tabPages,
+        switchTab    = switchTab,
+        setStatus    = SetStatus,
+    }
+end
+
+-- ═══════════════════════════════════════════════
+--       بناء الواجهة الكاملة مع التابات
+-- ═══════════════════════════════════════════════
+
+local window = LuxuryGUI:CreateWindow("Blox Fruits Luxury")
+local pages  = window.tabPages
+
+-- ─────────────────────────────────────
+--     تاب 1: الرئيسية 🏠
+-- ─────────────────────────────────────
+local homePage = pages[1]
+
+CreateSection(homePage, "⚡ معلومات اللاعب")
+
+local infoCard = CreateInstance("Frame", {
+    Size            = UDim2.new(1, -20, 0, 0),
+    Position        = UDim2.new(0, 10, 0, 0),
+    BackgroundColor3= CONFIG.COLORS.SECONDARY_BG,
+    BackgroundTransparency = 0.3,
+    AutomaticSize   = Enum.AutomaticSize.Y,
+    Parent          = homePage,
+})
+CreateCorner(infoCard, 10)
+CreateStroke(infoCard, CONFIG.COLORS.GOLD, 1)
+CreatePadding(infoCard, 10, 10, 10, 10)
+
+local infoLayout = Instance.new("UIListLayout")
+infoLayout.SortOrder = Enum.SortOrder.LayoutOrder
+infoLayout.Padding = UDim.new(0, 6)
+infoLayout.Parent = infoCard
+
+local function InfoRow(parent, key, value, order)
+    local row = CreateInstance("Frame", {
+        Size            = UDim2.new(1, 0, 0, 26),
+        BackgroundTransparency = 1,
+        LayoutOrder     = order,
+        Parent          = parent,
+    })
+    CreateInstance("TextLabel", {
+        Size            = UDim2.new(0.45, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text            = key,
+        TextColor3      = CONFIG.COLORS.TEXT_GRAY,
+        TextSize        = 12,
+        Font            = Enum.Font.Gotham,
+        TextXAlignment  = Enum.TextXAlignment.Left,
+        Parent          = row,
+    })
+    local valLabel = CreateInstance("TextLabel", {
+        Size            = UDim2.new(0.55, 0, 1, 0),
+        Position        = UDim2.new(0.45, 0, 0, 0),
+        BackgroundTransparency = 1,
+        Text            = value,
+        TextColor3      = CONFIG.COLORS.GOLD,
+        TextSize        = 12,
+        Font            = Enum.Font.GothamBold,
+        TextXAlignment  = Enum.TextXAlignment.Right,
+        Parent          = row,
+    })
+    return valLabel
+end
+
+local playerName  = LocalPlayer.Name
+local playerLevel = "?"
+local currentSea  = "البحر الأول"
+local gemCount    = "0"
+
+-- محاولة قراءة المستوى
+local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local humanoid = char:FindFirstChild("Humanoid")
+if humanoid then
+    playerLevel = tostring(math.floor(humanoid.Health))
+end
+
+local nameVal  = InfoRow(infoCard, "👤 اسم اللاعب:",     playerName,  1)
+local levelVal = InfoRow(infoCard, "⭐ المستوى:",         playerLevel, 2)
+local seaVal   = InfoRow(infoCard, "🌊 البحر الحالي:",   currentSea,  3)
+local gemVal   = InfoRow(infoCard, "💎 الجواهر:",         gemCount,    4)
+
+local spacer = CreateInstance("Frame", {
+    Size = UDim2.new(1, -20, 0, 6), BackgroundTransparency = 1, Parent = homePage
+})
+
+LuxuryGUI:AddButton(homePage, "🔄  تحديث المعلومات", function()
+    SetStatus("جارٍ التحديث...")
+    task.wait(0.5)
+    nameVal.Text  = LocalPlayer.Name
+    local c = LocalPlayer.Character
+    if c then
+        local h = c:FindFirstChild("Humanoid")
+        if h then levelVal.Text = tostring(math.floor(h.MaxHealth)) end
+    end
+    SetStatus("تم التحديث بنجاح ✓")
+    LuxuryGUI:Notify("✅ تم تحديث المعلومات", 2)
+end)
+
+-- ─────────────────────────────────────
+--     تاب 2: البحث 🔍
+-- ─────────────────────────────────────
+local searchPage = pages[2]
+CreateSection(searchPage, "🔍 ضبط البحث")
+
+local seaDrop = LuxuryGUI:AddDropdown(searchPage, "اختر البحر:", {
+    "البحر الأول", "البحر الثاني", "البحر الثالث"
+}, function(v)
+    SetStatus("البحر: " .. v)
+end)
+
+local typeDrop = LuxuryGUI:AddDropdown(searchPage, "نوع البحث:", {
+    "بوسات 👾", "فروتات 🍎", "سيوف ⚔️"
+}, function(v) end)
+
+local itemDrop = LuxuryGUI:AddDropdown(searchPage, "العنصر المطلوب:", {
+    "كل العناصر", "برولي", "بلاك بيرد", "كيدو",
+    "غوما غوما", "ميرا ميرا", "يامي يامي",
+    "ماغما ماغما", "غورا غورا", "روكو روكو"
+}, function(v) end)
+
+local spacer2 = CreateInstance("Frame", {
+    Size = UDim2.new(1, -20, 0, 4), BackgroundTransparency = 1, Parent = searchPage
+})
+
+LuxuryGUI:AddButton(searchPage, "🔍  ابحث الآن", function()
+    SetStatus("جارٍ البحث...")
+    LuxuryGUI:Notify("🔍 جارٍ البحث، انتظر لحظة...", 1.5)
+
+    -- محاكاة نتائج البحث
+    task.wait(1.2)
+    SetStatus("تم إيجاد " .. math.random(2, 8) .. " سيرفرات")
+    LuxuryGUI:Notify("✅ تم العثور على النتائج!", 2)
+end)
+
+CreateSection(searchPage, "📋 نتائج البحث")
+
+local resultsFrame = CreateInstance("Frame", {
+    Size            = UDim2.new(1, -20, 0, 0),
+    Position        = UDim2.new(0, 10, 0, 0),
+    BackgroundColor3= CONFIG.COLORS.DROPDOWN_BG,
+    BackgroundTransparency = 0.2,
+    AutomaticSize   = Enum.AutomaticSize.Y,
+    Parent          = searchPage,
+})
+CreateCorner(resultsFrame, 8)
+CreateStroke(resultsFrame, CONFIG.COLORS.GOLD, 1)
+CreatePadding(resultsFrame, 8, 8, 8, 8)
+
+-- رأس الجدول
+local headerRow = CreateInstance("Frame", {
+    Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1, Parent = resultsFrame
+})
+for i, col in ipairs({"رقم السيرفر", "اللاعبون", "الثقة"}) do
+    local x = {UDim2.new(0.55, 0, 0, 0), UDim2.new(0.25, 0, 0, 0), UDim2.new(0, 0, 0, 0)}
+    local w = {UDim2.new(0.45, 0, 1, 0), UDim2.new(0.3, 0, 1, 0), UDim2.new(0.25, 0, 1, 0)}
+    CreateInstance("TextLabel", {
+        Size = w[i], Position = x[i], BackgroundTransparency = 1,
+        Text = col, TextColor3 = CONFIG.COLORS.GOLD, TextSize = 11,
+        Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Center,
+        Parent = headerRow,
+    })
+end
+
+-- صفوف بيانات تجريبية
+local resultsLayout = Instance.new("UIListLayout")
+resultsLayout.Padding = UDim.new(0, 4)
+resultsLayout.Parent = resultsFrame
+
+local sampleResults = {
+    {"#A1F2C3", "12/20", "98%"},
+    {"#B9D4E1", "7/20",  "85%"},
+    {"#C3A7F8", "19/20", "72%"},
+}
+
+for _, row in ipairs(sampleResults) do
+    local rowFrame = CreateInstance("Frame", {
+        Size = UDim2.new(1, 0, 0, 28), BackgroundColor3 = CONFIG.COLORS.SECONDARY_BG,
+        BackgroundTransparency = 0.5, Parent = resultsFrame,
+    })
+    CreateCorner(rowFrame, 6)
+    local positions = {UDim2.new(0.55, 0, 0, 0), UDim2.new(0.25, 0, 0, 0), UDim2.new(0, 0, 0, 0)}
+    local widths    = {UDim2.new(0.45, 0, 1, 0), UDim2.new(0.3, 0, 1, 0), UDim2.new(0.25, 0, 1, 0)}
+    for i, val in ipairs(row) do
+        CreateInstance("TextLabel", {
+            Size = widths[i], Position = positions[i], BackgroundTransparency = 1,
+            Text = val, TextColor3 = CONFIG.COLORS.TEXT_WHITE, TextSize = 12,
+            Font = Enum.Font.Gotham, TextXAlignment = Enum.TextXAlignment.Center,
+            Parent = rowFrame,
+        })
+    end
+    local rowBtn = CreateInstance("TextButton", {
+        Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", Parent = rowFrame
+    })
+    rowBtn.MouseEnter:Connect(function()
+        Tween(rowFrame, {BackgroundTransparency = 0.2})
+    end)
+    rowBtn.MouseLeave:Connect(function()
+        Tween(rowFrame, {BackgroundTransparency = 0.5})
+    end)
+    rowBtn.MouseButton1Click:Connect(function()
+        LuxuryGUI:Notify("🚀 جارٍ الانتقال للسيرفر " .. row[1], 2)
+        SetStatus("جارٍ الانتقال للسيرفر...")
+    end)
+end
+
+LuxuryGUI:AddButton(searchPage, "🚀  انتقل للسيرفر المختار", function()
+    SetStatus("جارٍ الانتقال...")
+    LuxuryGUI:Notify("🚀 جارٍ الانتقال للسيرفر المختار", 2)
+end)
+
+-- ─────────────────────────────────────
+--     تاب 3: الانتقال 🌍
+-- ─────────────────────────────────────
+local tpPage = pages[3]
+CreateSection(tpPage, "🌍 مواقع الانتقال السريع")
+
+local LOCATIONS = {
+    {"🏝️ جزيرة البداية",     Vector3.new(0, 0, 0)},
+    {"🌳 الغابة",              Vector3.new(300, 0, 0)},
+    {"☠️ قرية القراصنة",      Vector3.new(600, 0, 0)},
+    {"🏜️ الصحراء",            Vector3.new(900, 0, 0)},
+    {"❄️ القرية المتجمدة",    Vector3.new(1200, 0, 0)},
+    {"⚓ قلعة البحرية",        Vector3.new(1500, 0, 0)},
+    {"☁️ السماء",              Vector3.new(1800, 0, 0)},
+    {"🌊 المدينة المائية",    Vector3.new(2100, 0, 0)},
+    {"🌋 قرية الحمم",          Vector3.new(2400, 0, 0)},
+    {"🏛️ الكولوسيوم",         Vector3.new(2700, 0, 0)},
+    {"⛲ مدينة النافورة",      Vector3.new(3000, 0, 0)},
+    {"🧊 قلعة الجليد",         Vector3.new(3300, 0, 0)},
+    {"☀️ السماء العليا",       Vector3.new(3600, 0, 0)},
+    {"🏔️ الجزيرة المنسية",   Vector3.new(3900, 0, 0)},
+    {"👻 القلعة المسكونة",    Vector3.new(4200, 0, 0)},
+    {"🗺️ تيكي أوت بوست",     Vector3.new(4500, 0, 0)},
+}
+
+local gridFrame = CreateInstance("Frame", {
+    Size            = UDim2.new(1, -20, 0, 0),
+    Position        = UDim2.new(0, 10, 0, 0),
+    BackgroundTransparency = 1,
+    AutomaticSize   = Enum.AutomaticSize.Y,
+    Parent          = tpPage,
+})
+
+local gridLayout = Instance.new("UIGridLayout")
+gridLayout.CellSize    = UDim2.new(0.5, -6, 0, 40)
+gridLayout.CellPadding = UDim2.new(0, 6, 0, 6)
+gridLayout.SortOrder   = Enum.SortOrder.LayoutOrder
+gridLayout.Parent      = gridFrame
+
+for i, loc in ipairs(LOCATIONS) do
+    local locBtn = CreateInstance("TextButton", {
+        Size            = UDim2.new(0, 0, 0, 0),
+        BackgroundColor3= CONFIG.COLORS.BUTTON_BG,
+        Text            = loc[1],
+        TextColor3      = CONFIG.COLORS.TEXT_WHITE,
+        TextSize        = 11,
+        Font            = Enum.Font.Gotham,
+        TextWrapped     = true,
+        AutoButtonColor = false,
+        LayoutOrder     = i,
+        Parent          = gridFrame,
+    })
+    CreateCorner(locBtn, 8)
+    CreateStroke(locBtn, Color3.fromRGB(50, 80, 130), 1)
+
+    locBtn.MouseEnter:Connect(function()
+        Tween(locBtn, {BackgroundColor3 = CONFIG.COLORS.BUTTON_HOVER})
+    end)
+    locBtn.MouseLeave:Connect(function()
+        Tween(locBtn, {BackgroundColor3 = CONFIG.COLORS.BUTTON_BG})
+    end)
+    locBtn.MouseButton1Click:Connect(function()
+        State.lastLocation = loc
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = CFrame.new(loc[2])
+        end
+        SetStatus("تم الانتقال: " .. loc[1])
+        LuxuryGUI:Notify("🌍 تم الانتقال إلى " .. loc[1], 2)
+    end)
+end
+
+local spacer3 = CreateInstance("Frame", {
+    Size = UDim2.new(1, 0, 0, 8), BackgroundTransparency = 1, Parent = tpPage
+})
+
+LuxuryGUI:AddButton(tpPage, "🔁  انتقل لآخر موقع تم زيارته", function()
+    if State.lastLocation then
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = CFrame.new(State.lastLocation[2])
+        end
+        LuxuryGUI:Notify("🔁 تم الانتقال إلى " .. State.lastLocation[1], 2)
+    else
+        LuxuryGUI:Notify("⚠️ لم يتم زيارة أي موقع بعد", 2)
+    end
+end)
+
+-- ─────────────────────────────────────
+--     تاب 4: الإعدادات ⚙️
+-- ─────────────────────────────────────
+local settingsPage = pages[4]
+CreateSection(settingsPage, "⚙️ خيارات النظام")
+
+LuxuryGUI:AddToggle(settingsPage, "🔔 إظهار الإشعارات", State.settings.notifications, function(v)
+    State.settings.notifications = v
+end)
+
+local spacer4 = CreateInstance("Frame", {
+    Size = UDim2.new(1, 0, 0, 6), BackgroundTransparency = 1, Parent = settingsPage
+})
+
+LuxuryGUI:AddToggle(settingsPage, "🔊 تأثيرات الصوت", State.settings.soundEffects, function(v)
+    State.settings.soundEffects = v
+    LuxuryGUI:Notify("🔊 تأثيرات الصوت: " .. (v and "مُفعَّلة" or "مُعطَّلة"), 2)
+end)
+
+CreateSection(settingsPage, "📊 معلومات السكربت")
+
+local aboutCard = CreateInstance("Frame", {
+    Size            = UDim2.new(1, -20, 0, 0),
+    Position        = UDim2.new(0, 10, 0, 0),
+    BackgroundColor3= CONFIG.COLORS.SECONDARY_BG,
+    BackgroundTransparency = 0.3,
+    AutomaticSize   = Enum.AutomaticSize.Y,
+    Parent          = settingsPage,
+})
+CreateCorner(aboutCard, 10)
+CreateStroke(aboutCard, CONFIG.COLORS.GOLD, 1)
+CreatePadding(aboutCard, 10, 10, 10, 10)
+
+local aboutLayout = Instance.new("UIListLayout")
+aboutLayout.SortOrder = Enum.SortOrder.LayoutOrder
+aboutLayout.Padding = UDim.new(0, 6)
+aboutLayout.Parent = aboutCard
+
+InfoRow(aboutCard, "📦 الإصدار:",       CONFIG.VERSION,      1)
+InfoRow(aboutCard, "👨‍💻 المطور:",       CONFIG.DEVELOPER,    2)
+InfoRow(aboutCard, "📅 آخر تحديث:",    CONFIG.UPDATE_DATE,  3)
+InfoRow(aboutCard, "🎮 اللعبة:",        "Blox Fruits",       4)
+InfoRow(aboutCard, "⚡ الإكسكيوتور:",  "Delta & All",       5)
+
+local spacer5 = CreateInstance("Frame", {
+    Size = UDim2.new(1, 0, 0, 4), BackgroundTransparency = 1, Parent = settingsPage
+})
+
+LuxuryGUI:AddButton(settingsPage, "🔄  إعادة تعيين الإعدادات", function()
+    State.settings.notifications = true
+    State.settings.soundEffects  = false
+    LuxuryGUI:Notify("✅ تم إعادة تعيين جميع الإعدادات", 2)
+    SetStatus("تم إعادة تعيين الإعدادات")
+end)
+
+-- ═══════════════════════════════════════════════
+--              رسالة الترحيب
+-- ═══════════════════════════════════════════════
+task.delay(0.5, function()
+    LuxuryGUI:Notify("⚔️ مرحباً بك في Blox Fruits Luxury GUI!", 3)
+end)
+
+return LuxuryGUI
